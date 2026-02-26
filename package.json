@@ -1,0 +1,31 @@
+{
+  "name": "whatsapp-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "@adiwajshing/keyed-db": "^0.2.4",
+    "@cacheable/node-cache": "^2.0.1",
+    "@hapi/boom": "^10.0.1",
+    "@kelvdra/baileys": "^1.0.3-rc.3",
+    "async-mutex": "^0.5.0",
+    "axios": "^1.13.5",
+    "cache-manager": "^7.2.8",
+    "chalk": "^5.6.2",
+    "express": "^4.19.2",
+    "libsignal": "^2.0.1",
+    "lru-cache": "^11.2.6",
+    "music-metadata": "^11.12.1",
+    "p-queue": "^9.1.0",
+    "pino": "^9.0.0",
+    "protobufjs": "^8.0.0",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.7.5",
+    "whatsapp-rust-bridge": "^0.5.3",
+    "ws": "^8.19.0"
+  }
+}

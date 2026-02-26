@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Bot Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <span class="header-logo">🤖</span>
+  <h1>WhatsApp Bot Dashboard</h1>
+  <div class="spacer"></div>
+  <div class="status-badge">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">Connecting…</span>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- Sidebar Navigation -->
+  <nav class="sidebar">
+    <button class="nav-item active" data-tab="connect">
+      <span class="icon">📡</span><span>Connect</span>
+    </button>
+    <button class="nav-item" data-tab="chats">
+      <span class="icon">💬</span><span>Chats</span>
+    </button>
+    <button class="nav-item" data-tab="send">
+      <span class="icon">🚀</span><span>Send Demo</span>
+    </button>
+    <button class="nav-item" data-tab="groups">
+      <span class="icon">👥</span><span>Groups</span>
+    </button>
+    <button class="nav-item" data-tab="privacy">
+      <span class="icon">🔒</span><span>Privacy</span>
+    </button>
+    <button class="nav-item" data-tab="logs">
+      <span class="icon">📋</span><span>Logs</span>
+    </button>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- ── CONNECT TAB ──────────────────────────────────────────────────── -->
+    <div class="tab-panel active" id="tab-connect">
+      <div class="section-title">📡 Connection</div>
+
+      <div class="grid2">
+        <div class="card">
+          <h2>Scan QR Code</h2>
+          <div class="qr-container">
+            <div class="qr-placeholder" id="qrPlaceholder">
+              <span>📷</span>
+              <small style="font-size:13px">Waiting for QR…</small>
+            </div>
+            <img class="qr-img" id="qrImg" alt="QR Code">
+            <div class="connected-box" id="connectedBox">
+              <div class="avatar">✅</div>
+              <div class="connected-name" id="connectedName">Connected</div>
+              <div class="connected-jid" id="connectedJid"></div>
+              <button class="btn btn-danger" onclick="logout()">Logout</button>
+            </div>
+            <p style="color:var(--text2);font-size:12px;text-align:center">Open WhatsApp → Linked Devices → Link a device</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Connection Info</h2>
+          <div id="connectionInfo" style="display:flex;flex-direction:column;gap:10px;">
+            <div style="color:var(--text2)">Not connected yet.</div>
+          </div>
+
+          <hr style="border-color:var(--border);margin:16px 0">
+          <h3>Stats</h3>
+          <div class="grid3" id="statsGrid">
+            <div class="stat-card">
+              <div class="stat-number" id="statChats">0</div>
+              <div class="stat-label">Chats</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="statContacts">0</div>
+              <div class="stat-label">Contacts</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-number" id="statMessages">0</div>
+              <div class="stat-label">Messages</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Incoming Messages (Live)</h2>
+        <div class="messages-area" id="liveMessages">
+          <div style="color:var(--text2);text-align:center;padding:20px">Messages will appear here…</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Poll Results (Live)</h2>
+        <div id="pollResults" style="color:var(--text2)">No poll votes received yet.</div>
+      </div>
+    </div>
+
+    <!-- ── CHATS TAB ──────────────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-chats">
+      <div class="section-title">💬 Chats</div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Chat List <button class="btn btn-secondary" onclick="loadChats()" style="float:right;padding:4px 10px;font-size:12px">Refresh</button></h2>
+          <div class="chat-list" id="chatList">
+            <div style="color:var(--text2)">Loading chats…</div>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Send Message</h2>
+          <div class="form-group">
+            <label>Target JID (e.g. 1234567890@s.whatsapp.net)</label>
+            <input type="text" id="sendJid" placeholder="JID or select from chat list">
+          </div>
+          <div class="form-group">
+            <label>Message</label>
+            <textarea id="sendMsg" placeholder="Type a message…"></textarea>
+          </div>
+          <button class="btn btn-primary" onclick="sendQuickText()">Send Message</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SEND DEMO TAB ──────────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-send">
+      <div class="section-title">🚀 Send Demo — All Message Types</div>
+
+      <div class="card" style="margin-bottom:20px">
+        <p style="color:var(--text2);margin-bottom:16px">
+          Choose any message type and enter a target JID to send a demo. You can also use
+          <strong style="color:var(--green)">WhatsApp chat commands</strong> by sending <code>!help</code> to the bot.
+        </p>
+
+        <div class="grid2">
+          <div>
+            <div class="form-group">
+              <label>Target JID</label>
+              <input type="text" id="demoJid" placeholder="e.g. 1234567890@s.whatsapp.net">
+            </div>
+            <div class="form-group">
+              <label>Message Type</label>
+              <select id="demoType">
+                <option value="">Loading…</option>
+              </select>
+            </div>
+            <!-- Extra fields shown dynamically -->
+            <div id="extraFields"></div>
+            <button class="btn btn-primary" onclick="sendDemo()">🚀 Send Demo</button>
+          </div>
+
+          <div>
+            <h3>Commands Reference</h3>
+            <div style="background:var(--bg3);border-radius:var(--radius);padding:12px;font-family:monospace;font-size:12px;line-height:1.8;max-height:320px;overflow-y:auto" id="commandsRef">
+              <div style="color:var(--text2)">Loading…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Message type gallery -->
+      <div class="card">
+        <h2>All Supported Message Types</h2>
+        <div class="grid3" id="typeGallery"></div>
+      </div>
+    </div>
+
+    <!-- ── GROUPS TAB ──────────────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-groups">
+      <div class="section-title">👥 Groups</div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Your Groups <button class="btn btn-secondary" onclick="loadGroups()" style="float:right;padding:4px 10px;font-size:12px">Refresh</button></h2>
+          <div id="groupList" style="display:flex;flex-direction:column;gap:8px">
+            <div style="color:var(--text2)">Loading…</div>
+          </div>
+        </div>
+        <div id="groupDetail" class="card">
+          <h2>Group Details</h2>
+          <div style="color:var(--text2)">Select a group to view details.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PRIVACY TAB ─────────────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-privacy">
+      <div class="section-title">🔒 Privacy & Profile</div>
+      <div class="grid2">
+        <div class="card">
+          <h2>Privacy Settings <button class="btn btn-secondary" onclick="loadPrivacy()" style="float:right;padding:4px 10px;font-size:12px">Refresh</button></h2>
+          <div id="privacySettings" style="color:var(--text2)">Loading…</div>
+        </div>
+        <div class="card">
+          <h2>Update Profile</h2>
+          <div class="form-group">
+            <label>Status Text</label>
+            <input type="text" id="newStatus" placeholder="Hey there! I am using WhatsApp.">
+          </div>
+          <button class="btn btn-primary" onclick="updateStatus()">Update Status</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LOGS TAB ────────────────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-logs">
+      <div class="section-title">
+        📋 Real-time Event Logs
+        <button class="btn btn-secondary" onclick="clearLogs()" style="margin-left:auto;font-size:12px;padding:4px 10px">Clear</button>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="log-area" id="logArea">
+          <div class="log-entry" style="color:var(--text2)">Waiting for events…</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
