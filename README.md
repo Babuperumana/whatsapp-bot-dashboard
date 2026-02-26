@@ -1,6 +1,6 @@
 # WhatsApp Bot — Full Feature Demo
 
-A comprehensive WhatsApp bot built with [@kelvdra/baileys](https://github.com/kelvdra/baileys) featuring every message type, interactive messages, group management, and a real-time web dashboard.
+A comprehensive WhatsApp bot built with interactive messages, group management, and a real-time web dashboard.
 
 ## Features
 
