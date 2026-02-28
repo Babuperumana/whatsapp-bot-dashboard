@@ -9,6 +9,8 @@ import { createWebServer } from './web/server.js'
 import { onMessagesUpsert, onMessagesUpdate } from './bot/handlers/messages.js'
 import { onCall } from './bot/handlers/calls.js'
 import { onPresenceUpdate } from './bot/handlers/presence.js'
+import { initScheduler } from './bot/scheduler.js'
+import { setStore } from './bot/features/pollManager.js'
 
 const PORT = process.env.PORT || 3000
 
@@ -24,8 +26,10 @@ async function main() {
   setIO(io)
 
   // ── Connect to WhatsApp ─────────────────────────────────────────────────
+  setStore(store)
   const sock = await connectToWhatsApp()
   setupBotHandlers(sock, io)
+  initScheduler(getSock, io)
 }
 
 function setupBotHandlers(sock, io) {

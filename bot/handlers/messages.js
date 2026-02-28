@@ -1,7 +1,7 @@
 import { getContentType } from '@kelvdra/baileys'
 import { handleCommand } from './commands.js'
 import { downloadMedia, bufferToDataUrl, extractText, getMessageTypeLabel } from '../features/mediaHandler.js'
-import { handlePollUpdate } from '../features/pollManager.js'
+import { handlePollUpdate, handlePollUpdateMessage } from '../features/pollManager.js'
 
 /**
  * Handle messages.upsert event
@@ -12,9 +12,20 @@ export async function onMessagesUpsert(sock, { messages, type }, io) {
 
   for (const msg of messages) {
     if (!msg.message) continue
-    // Ignore protocol messages & our own sent messages (fromMe) for commands
     const msgType = getContentType(msg.message)
+
+    // Skip pure protocol/key-distribution messages
     if (msgType === 'protocolMessage' || msgType === 'senderKeyDistributionMessage') continue
+
+    // pollUpdateMessage = a vote arrived (group polls come this way via upsert)
+    if (msgType === 'pollUpdateMessage') {
+      const result = await handlePollUpdateMessage(sock, msg)
+      if (result) {
+        io?.emit('poll_result', result)
+        console.log('Poll result (upsert):', result.question, result.results)
+      }
+      continue  // don't show in live messages feed
+    }
 
     const jid = msg.key.remoteJid
     const isGroup = jid?.endsWith('@g.us')
@@ -50,27 +61,20 @@ export async function onMessagesUpsert(sock, { messages, type }, io) {
 
     // ── Auto-reply / command handling (only for messages not from us) ────────
     if (!msg.key.fromMe) {
-      // Try command handler first
-      const handled = await handleCommand(sock, msg, io)
-
-      // If not a command, do echo-bot behaviour (optional — disabled by default)
-      // Uncomment below to enable echo:
-      // if (!handled && text) {
-      //   await sock.sendMessage(jid, { text: `Echo: ${text}` })
-      // }
+      await handleCommand(sock, msg, io)
     }
   }
 }
 
 /**
- * Handle messages.update event (status, poll votes, reactions)
+ * Handle messages.update event (status, poll votes for private chats)
  */
 export async function onMessagesUpdate(sock, updates, io) {
-  // Check for poll vote updates
+  // messages.update path — works for private chat polls
   const pollResult = handlePollUpdate(updates, sock.user?.id)
   if (pollResult) {
     io?.emit('poll_result', pollResult)
-    console.log('Poll result:', pollResult)
+    console.log('Poll result (update):', pollResult.question, pollResult.results)
   }
 
   for (const update of updates) {

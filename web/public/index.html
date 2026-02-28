@@ -35,6 +35,12 @@
     <button class="nav-item" data-tab="groups">
       <span class="icon">👥</span><span>Groups</span>
     </button>
+    <button class="nav-item" data-tab="interactive">
+      <span class="icon">🎛️</span><span>Interactive</span>
+    </button>
+    <button class="nav-item" data-tab="scheduler">
+      <span class="icon">⏰</span><span>Scheduler</span>
+    </button>
     <button class="nav-item" data-tab="privacy">
       <span class="icon">🔒</span><span>Privacy</span>
     </button>
@@ -102,8 +108,14 @@
       </div>
 
       <div class="card">
-        <h2>Poll Results (Live)</h2>
-        <div id="pollResults" style="color:var(--text2)">No poll votes received yet.</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h2 style="margin:0">🗳️ Poll Results</h2>
+          <button class="btn btn-secondary" onclick="loadPollHistory()" style="padding:4px 10px;font-size:12px">Refresh History</button>
+        </div>
+        <!-- Live (latest vote update) -->
+        <div id="pollResults" style="color:var(--text2);margin-bottom:20px">Waiting for votes…</div>
+        <!-- History -->
+        <div id="pollHistory"></div>
       </div>
     </div>
 
@@ -121,7 +133,7 @@
           <h2>Send Message</h2>
           <div class="form-group">
             <label>Target JID (e.g. 1234567890@s.whatsapp.net)</label>
-            <input type="text" id="sendJid" placeholder="JID or select from chat list">
+            <input type="text" id="sendJid" placeholder="e.g. 918907959595 or 10-digit number">
           </div>
           <div class="form-group">
             <label>Message</label>
@@ -146,7 +158,7 @@
           <div>
             <div class="form-group">
               <label>Target JID</label>
-              <input type="text" id="demoJid" placeholder="e.g. 1234567890@s.whatsapp.net">
+              <input type="text" id="demoJid" placeholder="e.g. 918907959595 or 10-digit number">
             </div>
             <div class="form-group">
               <label>Message Type</label>
@@ -175,6 +187,240 @@
       </div>
     </div>
 
+    <!-- ── INTERACTIVE TAB ───────────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-interactive">
+      <div class="section-title">🎛️ Custom Interactive Messages</div>
+
+      <!-- Target JID (shared across all builders) -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="form-group" style="margin:0">
+          <label>Target JID (applies to all builders below)</label>
+          <input type="text" id="ixJid" placeholder="e.g. 918907959595 or 10-digit number">
+        </div>
+      </div>
+
+      <!-- ── BUTTONS BUILDER ─── -->
+      <div class="card ix-card">
+        <div class="ix-card-header">
+          <span>🔘 Quick-Reply Buttons</span>
+          <button class="btn btn-primary" onclick="sendCustomButtons()">Send</button>
+        </div>
+        <div class="form-group">
+          <label>Header Text (optional)</label>
+          <input type="text" id="btn_header" placeholder="Header text…">
+        </div>
+        <div class="form-group">
+          <label>Body Text</label>
+          <textarea id="btn_body" placeholder="Main message body…">Choose an option:</textarea>
+        </div>
+        <div class="form-group">
+          <label>Footer Text (optional)</label>
+          <input type="text" id="btn_footer" placeholder="Footer text…">
+        </div>
+        <div class="form-group">
+          <label>Buttons <span class="badge">max 3</span></label>
+          <div id="btn_list">
+            <div class="ix-row">
+              <input type="text" placeholder="Button label" class="btn-label" value="Option 1">
+              <input type="text" placeholder="Button ID (unique)" class="btn-id" value="btn_1">
+              <button class="btn btn-secondary ix-remove" onclick="removeRow(this)">✕</button>
+            </div>
+            <div class="ix-row">
+              <input type="text" placeholder="Button label" class="btn-label" value="Option 2">
+              <input type="text" placeholder="Button ID (unique)" class="btn-id" value="btn_2">
+              <button class="btn btn-secondary ix-remove" onclick="removeRow(this)">✕</button>
+            </div>
+          </div>
+          <button class="btn btn-secondary ix-add" onclick="addButtonRow()">+ Add Button</button>
+        </div>
+      </div>
+
+      <!-- ── LIST BUILDER ─── -->
+      <div class="card ix-card">
+        <div class="ix-card-header">
+          <span>📋 List / Menu Message</span>
+          <button class="btn btn-primary" onclick="sendCustomList()">Send</button>
+        </div>
+        <div class="grid2">
+          <div>
+            <div class="form-group">
+              <label>Header Text</label>
+              <input type="text" id="list_header" value="Choose an item">
+            </div>
+            <div class="form-group">
+              <label>Body Text</label>
+              <textarea id="list_body">Browse the menu below and tap an option.</textarea>
+            </div>
+            <div class="form-group">
+              <label>Footer Text (optional)</label>
+              <input type="text" id="list_footer" placeholder="Powered by Bot">
+            </div>
+            <div class="form-group">
+              <label>Button Label (opens the list)</label>
+              <input type="text" id="list_btn_text" value="View Options">
+            </div>
+          </div>
+          <div>
+            <div class="form-group">
+              <label>Sections</label>
+              <div id="list_sections"></div>
+              <button class="btn btn-secondary ix-add" onclick="addListSection()">+ Add Section</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── POLL BUILDER ─── -->
+      <div class="card ix-card">
+        <div class="ix-card-header">
+          <span>🗳️ Poll Message</span>
+          <button class="btn btn-primary" onclick="sendCustomPoll()">Send</button>
+        </div>
+        <div class="form-group">
+          <label>Poll Question</label>
+          <input type="text" id="poll_question" value="What's your favourite feature?">
+        </div>
+        <div class="form-group">
+          <label>Options <span class="badge">2–12</span></label>
+          <div id="poll_options">
+            <div class="ix-row">
+              <input type="text" placeholder="Option" class="poll-opt" value="Buttons">
+              <button class="btn btn-secondary ix-remove" onclick="removeRow(this)">✕</button>
+            </div>
+            <div class="ix-row">
+              <input type="text" placeholder="Option" class="poll-opt" value="Lists">
+              <button class="btn btn-secondary ix-remove" onclick="removeRow(this)">✕</button>
+            </div>
+            <div class="ix-row">
+              <input type="text" placeholder="Option" class="poll-opt" value="Carousel">
+              <button class="btn btn-secondary ix-remove" onclick="removeRow(this)">✕</button>
+            </div>
+          </div>
+          <button class="btn btn-secondary ix-add" onclick="addPollOption()">+ Add Option</button>
+        </div>
+        <div class="form-group">
+          <label>Max Selectable Answers</label>
+          <select id="poll_selectable">
+            <option value="1">1 — Single choice</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="0">0 — Unlimited</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ── CTA URL BUILDER ─── -->
+      <div class="card ix-card">
+        <div class="ix-card-header">
+          <span>🔗 CTA URL Button</span>
+          <button class="btn btn-primary" onclick="sendCustomCtaUrl()">Send</button>
+        </div>
+        <div class="form-group">
+          <label>Display Text</label>
+          <input type="text" id="cta_url_text" value="Check this out!">
+        </div>
+        <div class="form-group">
+          <label>Button Label</label>
+          <input type="text" id="cta_url_label" value="Open Link">
+        </div>
+        <div class="form-group">
+          <label>URL</label>
+          <input type="text" id="cta_url_url" value="https://github.com">
+        </div>
+      </div>
+
+      <!-- ── CTA CALL BUILDER ─── -->
+      <div class="card ix-card">
+        <div class="ix-card-header">
+          <span>📞 CTA Call Button</span>
+          <button class="btn btn-primary" onclick="sendCustomCtaCall()">Send</button>
+        </div>
+        <div class="form-group">
+          <label>Display Text</label>
+          <input type="text" id="cta_call_text" value="Need help? Call us!">
+        </div>
+        <div class="form-group">
+          <label>Button Label</label>
+          <input type="text" id="cta_call_label" value="Call Now">
+        </div>
+        <div class="form-group">
+          <label>Phone Number (with country code, no +)</label>
+          <input type="text" id="cta_call_phone" placeholder="1234567890">
+        </div>
+      </div>
+
+      <!-- ── CTA COPY BUILDER ─── -->
+      <div class="card ix-card">
+        <div class="ix-card-header">
+          <span>📋 CTA Copy Button</span>
+          <button class="btn btn-primary" onclick="sendCustomCtaCopy()">Send</button>
+        </div>
+        <div class="form-group">
+          <label>Display Text</label>
+          <input type="text" id="cta_copy_text" value="Use this promo code:">
+        </div>
+        <div class="form-group">
+          <label>Button Label</label>
+          <input type="text" id="cta_copy_label" value="Copy Code">
+        </div>
+        <div class="form-group">
+          <label>Copy Text (promo code / value to copy)</label>
+          <input type="text" id="cta_copy_code" value="SAVE50">
+        </div>
+      </div>
+
+      <!-- ── BUTTONS WITH IMAGE BUILDER ─── -->
+      <div class="card ix-card">
+        <div class="ix-card-header">
+          <span>🖼️ Buttons with Image</span>
+          <button class="btn btn-primary" onclick="sendCustomImgButtons()">Send</button>
+        </div>
+        <div class="form-group">
+          <label>Image URL</label>
+          <input type="text" id="imgbtn_url" value="https://picsum.photos/800/400">
+        </div>
+        <div class="form-group">
+          <label>Caption / Body Text</label>
+          <textarea id="imgbtn_caption">Check out this image!</textarea>
+        </div>
+        <div class="form-group">
+          <label>Footer (optional)</label>
+          <input type="text" id="imgbtn_footer" placeholder="Footer text…">
+        </div>
+        <div class="form-group">
+          <label>Quick-Reply Buttons <span class="badge">max 2</span></label>
+          <div id="imgbtn_list">
+            <div class="ix-row">
+              <input type="text" placeholder="Button label" class="imgbtn-label" value="Yes">
+              <input type="text" placeholder="Button ID" class="imgbtn-id" value="ib_yes">
+              <button class="btn btn-secondary ix-remove" onclick="removeRow(this)">✕</button>
+            </div>
+            <div class="ix-row">
+              <input type="text" placeholder="Button label" class="imgbtn-label" value="No">
+              <input type="text" placeholder="Button ID" class="imgbtn-id" value="ib_no">
+              <button class="btn btn-secondary ix-remove" onclick="removeRow(this)">✕</button>
+            </div>
+          </div>
+          <button class="btn btn-secondary ix-add" onclick="addImgButtonRow()">+ Add Button</button>
+        </div>
+      </div>
+
+      <!-- ── CAROUSEL BUILDER ─── -->
+      <div class="card ix-card">
+        <div class="ix-card-header">
+          <span>🎠 Carousel Cards</span>
+          <button class="btn btn-primary" onclick="sendCustomCarousel()">Send</button>
+        </div>
+        <div class="form-group">
+          <label>Body Text (shown above carousel)</label>
+          <textarea id="carousel_body">Browse our products:</textarea>
+        </div>
+        <div id="carousel_cards"></div>
+        <button class="btn btn-secondary ix-add" style="margin-top:8px" onclick="addCarouselCard()">+ Add Card</button>
+      </div>
+
+    </div>
+
     <!-- ── GROUPS TAB ──────────────────────────────────────────────────────── -->
     <div class="tab-panel" id="tab-groups">
       <div class="section-title">👥 Groups</div>
@@ -188,6 +434,91 @@
         <div id="groupDetail" class="card">
           <h2>Group Details</h2>
           <div style="color:var(--text2)">Select a group to view details.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SCHEDULER TAB ──────────────────────────────────────────────────── -->
+    <div class="tab-panel" id="tab-scheduler">
+      <div class="section-title">⏰ Message Scheduler</div>
+
+      <!-- Create Schedule -->
+      <div class="card">
+        <div class="ix-card-header">
+          <span>➕ Create New Schedule</span>
+          <button class="btn btn-primary" onclick="createSchedule()">💾 Save Schedule</button>
+        </div>
+
+        <div class="grid2">
+          <!-- Left column -->
+          <div>
+            <div class="form-group">
+              <label>Label (optional, for your reference)</label>
+              <input type="text" id="sc_label" placeholder="e.g. Morning greeting">
+            </div>
+            <div class="form-group">
+              <label>Send To</label>
+              <div class="sc-target-tabs">
+                <button class="sc-target-tab active" id="sc_tab_contact" onclick="scSwitchTarget('contact')">👤 Contact</button>
+                <button class="sc-target-tab" id="sc_tab_group" onclick="scSwitchTarget('group')">👥 Group</button>
+              </div>
+              <!-- Contact input -->
+              <div id="sc_target_contact">
+                <input type="text" id="sc_jid_contact" placeholder="e.g. 918907959595 or 10-digit number" style="margin-top:8px">
+              </div>
+              <!-- Group picker -->
+              <div id="sc_target_group" style="display:none;margin-top:8px">
+                <select id="sc_jid_group">
+                  <option value="">Loading groups…</option>
+                </select>
+                <button class="btn btn-secondary" onclick="scLoadGroups()" style="margin-top:6px;padding:4px 12px;font-size:12px;width:100%">🔄 Refresh Groups</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Message Category</label>
+              <select id="sc_category" onchange="scUpdateTypeList()">
+                <option value="send">📨 Basic (text, image, video, poll…)</option>
+                <option value="send-interactive">🎛️ Interactive (buttons, list, carousel…)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Message Type</label>
+              <select id="sc_type" onchange="scUpdatePayloadFields()">
+                <option value="">Select type…</option>
+              </select>
+            </div>
+            <!-- Dynamic payload fields -->
+            <div id="sc_payload_fields"></div>
+          </div>
+
+          <!-- Right column -->
+          <div>
+            <div class="form-group">
+              <label>Schedule Type</label>
+              <div class="sc-radio-group">
+                <label class="sc-radio"><input type="radio" name="sc_schedule_type" value="once" checked onchange="scUpdateScheduleFields()"> <span>📅 Once</span></label>
+                <label class="sc-radio"><input type="radio" name="sc_schedule_type" value="daily" onchange="scUpdateScheduleFields()"> <span>🔁 Daily</span></label>
+                <label class="sc-radio"><input type="radio" name="sc_schedule_type" value="weekly" onchange="scUpdateScheduleFields()"> <span>📆 Weekly</span></label>
+                <label class="sc-radio"><input type="radio" name="sc_schedule_type" value="interval" onchange="scUpdateScheduleFields()"> <span>⏱️ Interval</span></label>
+              </div>
+            </div>
+            <div id="sc_schedule_fields"></div>
+
+            <div class="sc-preview-box" id="sc_preview">
+              <div style="color:var(--text2);font-size:12px">Fill in the fields to see a schedule preview.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scheduled Messages List -->
+      <div class="card">
+        <div class="ix-card-header">
+          <span>📋 Scheduled Messages</span>
+          <button class="btn btn-secondary" onclick="loadScheduler()" style="padding:4px 10px;font-size:12px">Refresh</button>
+        </div>
+        <div id="scheduleList">
+          <div style="color:var(--text2)">No schedules yet.</div>
         </div>
       </div>
     </div>

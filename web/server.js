@@ -6,6 +6,8 @@ import { dirname, join } from 'path'
 import { getSock, store } from '../bot/connection.js'
 import * as sendExamples from '../bot/features/sendExamples.js'
 import * as groupManager from '../bot/features/groupManager.js'
+import * as scheduler from '../bot/scheduler.js'
+import { getPollHistory } from '../bot/features/pollManager.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -34,7 +36,42 @@ export function createWebServer() {
 
   app.get('/api/chats', (req, res) => {
     const chats = store.chats.all()
-    res.json(chats.slice(0, 100))
+
+    const enriched = chats.slice(0, 100).map(chat => {
+      // Try to grab the last stored message for this chat
+      let lastMessage = null
+      try {
+        const msgs = store.messages[chat.id]
+        if (msgs) {
+          const all = msgs.array ?? msgs.toJSON?.() ?? Object.values(msgs)
+          const last = all[all.length - 1]
+          if (last?.message) {
+            const m = last.message
+            const fromMe = last.key?.fromMe
+            // Extract text from whichever message type is present
+            const text =
+              m.conversation ||
+              m.extendedTextMessage?.text ||
+              m.imageMessage?.caption || (m.imageMessage ? '📷 Photo' : null) ||
+              m.videoMessage?.caption || (m.videoMessage ? '🎥 Video' : null) ||
+              m.audioMessage ? (m.audioMessage.ptt ? '🎤 Voice note' : '🎵 Audio') : null ||
+              m.documentMessage ? `📄 ${m.documentMessage.fileName || 'Document'}` : null ||
+              m.stickerMessage ? '🌟 Sticker' : null ||
+              m.locationMessage ? '📍 Location' : null ||
+              m.contactMessage ? '👤 Contact' : null ||
+              m.pollCreationMessage ? `📊 Poll: ${m.pollCreationMessage.name}` : null ||
+              m.pollCreationMessageV3 ? `📊 Poll: ${m.pollCreationMessageV3.name}` : null ||
+              m.reactionMessage ? `${m.reactionMessage.text} Reaction` : null ||
+              '📎 Message'
+            lastMessage = { text, fromMe }
+          }
+        }
+      } catch {}
+
+      return { ...chat, lastMessage }
+    })
+
+    res.json(enriched)
   })
 
   app.get('/api/contacts', (req, res) => {
@@ -106,6 +143,149 @@ export function createWebServer() {
     }
   })
 
+  // ── Custom Interactive Messages ───────────────────────────────────────────
+  app.post('/api/send-interactive', async (req, res) => {
+    const sock = getSock()
+    if (!sock?.user) return res.status(503).json({ error: 'Not connected' })
+
+    const { jid, type, payload = {} } = req.body
+    if (!jid || !type) return res.status(400).json({ error: 'jid and type required' })
+
+    try {
+      let result
+
+      if (type === 'custom_buttons') {
+        const { header, body, footer, buttons } = payload
+        result = await sock.sendMessage(jid, {
+          text: body,
+          title: header || '',
+          footer: footer || '',
+          interactiveButtons: buttons.map(b => ({
+            name: 'quick_reply',
+            buttonParamsJson: JSON.stringify({ display_text: b.label, id: b.id }),
+          })),
+        })
+
+      } else if (type === 'custom_list') {
+        const { header, body, footer, buttonText, sections } = payload
+        result = await sock.sendMessage(jid, {
+          text: body,
+          title: header || '',
+          footer: footer || '',
+          interactiveButtons: [{
+            name: 'single_select',
+            buttonParamsJson: JSON.stringify({
+              title: buttonText || 'View Options',
+              sections: sections.map(s => ({
+                title: s.title,
+                rows: s.rows.map(r => ({
+                  title: r.title,
+                  description: r.description || '',
+                  id: r.rowId,
+                })),
+              })),
+            }),
+          }],
+        })
+
+      } else if (type === 'custom_poll') {
+        const { question, options, selectableCount } = payload
+        result = await sock.sendMessage(jid, {
+          poll: {
+            name: question,
+            values: options,
+            selectableCount: selectableCount ?? 1,
+          },
+        })
+
+      } else if (type === 'custom_cta_url') {
+        const { text, label, url } = payload
+        result = await sock.sendMessage(jid, {
+          text,
+          title: label || 'Open Link',
+          footer: '',
+          interactiveButtons: [{
+            name: 'cta_url',
+            buttonParamsJson: JSON.stringify({
+              display_text: label || 'Open Link',
+              url,
+              merchant_url: url,
+            }),
+          }],
+        })
+
+      } else if (type === 'custom_cta_call') {
+        const { text, label, phone } = payload
+        result = await sock.sendMessage(jid, {
+          text,
+          title: label || 'Call Now',
+          footer: '',
+          interactiveButtons: [{
+            name: 'cta_call',
+            buttonParamsJson: JSON.stringify({
+              display_text: label || 'Call Now',
+              phone_number: phone,
+            }),
+          }],
+        })
+
+      } else if (type === 'custom_cta_copy') {
+        const { text, label, code } = payload
+        result = await sock.sendMessage(jid, {
+          text,
+          title: label || 'Copy Code',
+          footer: '',
+          interactiveButtons: [{
+            name: 'cta_copy',
+            buttonParamsJson: JSON.stringify({
+              display_text: label || 'Copy Code',
+              id: 'copy_code_001',
+              copy_code: code,
+            }),
+          }],
+        })
+
+      } else if (type === 'custom_buttons_image') {
+        const { imageUrl, caption, footer, buttons } = payload
+        result = await sock.sendMessage(jid, {
+          image: { url: imageUrl },
+          caption: caption || '',
+          footer: footer || '',
+          interactiveButtons: buttons.map(b => ({
+            name: 'quick_reply',
+            buttonParamsJson: JSON.stringify({ display_text: b.label, id: b.id }),
+          })),
+        })
+
+      } else if (type === 'custom_carousel') {
+        const { body, cards } = payload
+        result = await sock.sendMessage(jid, {
+          carouselMessage: {
+            caption: body || '',
+            footer: '',
+            cards: cards.map(card => ({
+              headerTitle: card.title,
+              imageUrl: card.imageUrl,
+              bodyText: card.description,
+              buttons: card.buttons.map(b => b.type === 'cta_url'
+                ? { name: 'cta_url', params: { display_text: b.label, url: b.value, merchant_url: b.value } }
+                : { name: 'quick_reply', params: { display_text: b.label, id: b.value } }
+              ),
+            })),
+          },
+        })
+
+      } else {
+        return res.status(400).json({ error: `Unknown interactive type: ${type}` })
+      }
+
+      res.json({ success: true, messageId: result?.key?.id })
+    } catch (e) {
+      console.error('Interactive send error:', e)
+      res.status(500).json({ error: e.message })
+    }
+  })
+
   app.get('/api/group/:jid/invite', async (req, res) => {
     try {
       const sock = getSock()
@@ -149,6 +329,47 @@ export function createWebServer() {
     } catch (e) {
       res.status(500).json({ error: e.message })
     }
+  })
+
+  app.get('/api/poll-history', (req, res) => {
+    res.json(getPollHistory())
+  })
+
+  // ── Scheduler Routes ──────────────────────────────────────────────────────
+  app.get('/api/schedules', (req, res) => {
+    try { res.json(scheduler.getAll()) }
+    catch (e) { res.status(500).json({ error: e.message }) }
+  })
+
+  app.post('/api/schedules', (req, res) => {
+    try {
+      const row = scheduler.create(req.body)
+      res.json({ success: true, schedule: row })
+    } catch (e) { res.status(500).json({ error: e.message }) }
+  })
+
+  app.put('/api/schedules/:id', async (req, res) => {
+    try {
+      const { runNow, ...fields } = req.body
+      if (runNow) {
+        // Immediately fire
+        const sched = scheduler.getAll().find(s => s.id === parseInt(req.params.id))
+        if (!sched) return res.status(404).json({ error: 'Not found' })
+        const sock = getSock()
+        if (!sock?.user) return res.status(503).json({ error: 'Not connected' })
+        const payload = JSON.parse(sched.payload)
+        await scheduler.dispatchMessage(sock, sched.jid, sched.endpoint, sched.type, payload)
+        res.json({ success: true })
+      } else {
+        const row = scheduler.update(parseInt(req.params.id), fields)
+        res.json({ success: true, schedule: row })
+      }
+    } catch (e) { res.status(500).json({ error: e.message }) }
+  })
+
+  app.delete('/api/schedules/:id', (req, res) => {
+    try { scheduler.remove(parseInt(req.params.id)); res.json({ success: true }) }
+    catch (e) { res.status(500).json({ error: e.message }) }
   })
 
   // ── Socket.IO ─────────────────────────────────────────────────────────────
